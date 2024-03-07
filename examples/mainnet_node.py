@@ -14,6 +14,7 @@ node_port = os.getenv('NODE_PORT')
 rpc_uri = os.getenv('RPC_URI')
 private_key = os.getenv('PRIVATE_KEY')
 
+
 node_provider = NodeHTTPProvider(f"http://{node_hostname}:{node_port}")
 blockchain_provider = BlockchainProvider(
     "mainnet",
