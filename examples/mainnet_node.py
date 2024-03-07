@@ -27,6 +27,7 @@ dkg = DKG(node_provider, blockchain_provider)
 
 info_result = dkg.node.info
 
+
 def print_json(json_dict: dict):
     print(json.dumps(json_dict, indent=4))
 
