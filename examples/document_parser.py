@@ -34,7 +34,7 @@ UNSTRUCTURED_URL = os.getenv('UNSTRUCTURED_URL')
 
 s = UnstructuredClient(api_key_auth=API_KEY, server_url=UNSTRUCTURED_URL)
 
-filename = os.path.join(os.path.dirname(__file__), '..', 'pdfs', 'recipe.pdf')
+filename = os.path.join(os.path.dirname(__file__), '..', 'pdfs', 'Verifiable_Internet_for_Artificial_Intelligence_whitepaper.pdf')
 with open(filename, "rb") as f:
 
     # Note that this currently only supports a single file
