@@ -1,30 +1,71 @@
 import os
 from dotenv import load_dotenv
-import requests
+from unstructured_client import UnstructuredClient
+from unstructured_client.models import shared
+from unstructured_client.models.errors import SDKError
+import json
+import unicodedata
 
-# Load environment variables from .env file
+
+def normalize_text(data):
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key == 'text' and isinstance(value, str):
+
+                normalized_value = unicodedata.normalize('NFKC', value)
+
+                # Replace specific Unicode characters with their desired representation
+                replaced_value = (
+                    normalized_value.replace('\u2248', '≈')
+                                    .replace('\u00b1', '±')
+                                    .replace('\u2019', "'")
+                )
+                data[key] = replaced_value
+            else:
+                normalize_text(value)
+    elif isinstance(data, list):
+        for item in data:
+            normalize_text(item)
+
+
 load_dotenv()
-
-# Retrieve API URL and API KEY from environment variables
-API_URL = os.getenv('UNSTRUCTURED_URL')
 API_KEY = os.getenv('UNSTRUCTURED_API')
+UNSTRUCTURED_URL = os.getenv('UNSTRUCTURED_URL')
 
-# The path to the file you want to send
-file_path = 'pdfs/recipe.pdf'
+s = UnstructuredClient(api_key_auth=API_KEY, server_url=UNSTRUCTURED_URL)
 
-# Make sure the file exists
-if not os.path.exists(file_path):
-    print(f"The file {file_path} does not exist.")
-    exit(1)
+filename = os.path.join(os.path.dirname(__file__), '..', 'pdfs', 'uap.pdf')
+with open(filename, "rb") as f:
 
-files = {'files': open(file_path, 'rb')}
+    # Note that this currently only supports a single file
+    files = shared.Files(
+        content=f.read(),
+        file_name=filename,
+    )
 
-headers = {
-    'accept': 'application/json',
-    'unstructured-api-key': API_KEY
-}
+req = shared.PartitionParameters(
+    files=files,
+    # Other partition params
+    #chunking_strategy='by_title',
+    strategy='hi_res',
+    languages=["eng"],
+    extract_image_block_types=["image", "table"],
+    hi_res_model_name='yolox',
+    pdf_infer_table_structure=True
+)
 
-response = requests.post(API_URL, headers=headers, files=files)
+try:
+    resp = s.general.partition(req)
+    # Directly serialize resp.elements if it's already in the correct format
+    normalized_elements = resp.elements  # Assume resp.elements is a list of dictionaries
+    normalize_text(normalized_elements)
+    for element in normalized_elements:
+        if 'metadata' in element and 'text_as_html' in element['metadata']:
+            print("HTML Table Content for element_id", element['element_id'], ":", element['metadata']['text_as_html'])
+        else:
+            pass
 
-# Print the response from the server
-print(response.text)
+        # If you want to print the entire response
+    print(json.dumps(normalized_elements, indent=4))
+except SDKError as e:
+    print(e)
