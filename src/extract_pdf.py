@@ -1,13 +1,9 @@
 import os
-import json
-import unicodedata
-import fitz  # PyMuPDF
-import base64
 from dotenv import load_dotenv
 from unstructured_client import UnstructuredClient
 from unstructured_client.models import shared
 from unstructured_client.models.errors import SDKError
-from unstructured.partition.pdf import partition_pdf
+import json
 class UnstructuredPDFExtractor:
     def __init__(self, pdf_path):
 
