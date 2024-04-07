@@ -28,6 +28,7 @@ with open(filename, "rb") as f:
     )
 
 req = shared.PartitionParameters(
+
     files=files,
     # Other partition params
     #chunking_strategy='by_title',
@@ -36,4 +37,15 @@ req = shared.PartitionParameters(
     extract_image_block_types=["image", "table"],
     hi_res_model_name='yolox',
     pdf_infer_table_structure=True
+
+)
+
+pdf = partition_pdf(
+    filename=filename,
+    strategy='hi_res',
+    extract_image_in_pdf=True,
+    extract_image_block_types=["image", "table"],
+    extract_image_block_to_payload=False,
+    extract_image_block_output_dir="path/to/save/images",
+
 )
