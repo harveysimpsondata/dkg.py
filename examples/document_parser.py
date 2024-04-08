@@ -28,8 +28,6 @@ with open(filename, "rb") as f:
 req = shared.PartitionParameters(
     files=files,
     include_page_breaks=False,
-    # Other partition params
-    #chunking_strategy='by_title',
     strategy='hi_res',
     languages=["eng"],
     extract_image_block_types=["Image", "Table"],
