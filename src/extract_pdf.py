@@ -11,7 +11,7 @@ class UnstructuredPDFExtractor:
         load_dotenv()
         self.API_KEY = os.getenv('UNSTRUCTURED_API')
         self.UNSTRUCTURED_URL = os.getenv('UNSTRUCTURED_URL')
-        self.client = UnstructuredClient(api_key_auth=self.api_key, server_url=self.unstructured_url)
+        self.client = UnstructuredClient(api_key_auth=self.API_KEY, server_url=self.UNSTRUCTURED_URL)
     def process_pdf(self):
 
         with open(self.pdf_path, "rb") as f:
