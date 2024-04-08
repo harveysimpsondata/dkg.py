@@ -4,6 +4,8 @@ from unstructured_client import UnstructuredClient
 from unstructured_client.models import shared
 from unstructured_client.models.errors import SDKError
 import json
+
+
 class UnstructuredPDFExtractor:
     def __init__(self, pdf_path):
 
@@ -12,6 +14,7 @@ class UnstructuredPDFExtractor:
         self.API_KEY = os.getenv('UNSTRUCTURED_API')
         self.UNSTRUCTURED_URL = os.getenv('UNSTRUCTURED_URL')
         self.client = UnstructuredClient(api_key_auth=self.API_KEY, server_url=self.UNSTRUCTURED_URL)
+
     def process_pdf(self):
 
         with open(self.pdf_path, "rb") as f:
