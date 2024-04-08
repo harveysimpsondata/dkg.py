@@ -4,7 +4,7 @@ from unstructured_client import UnstructuredClient
 from unstructured_client.models import shared
 from unstructured_client.models.errors import SDKError
 import json
-import unicodedata
+from unidecode import unidecode
 import fitz  # PyMuPDF
 import base64
 
@@ -27,7 +27,7 @@ with open(filename, "rb") as f:
 
 req = shared.PartitionParameters(
     files=files,
-    include_page_breaks=True,
+    include_page_breaks=False,
     # Other partition params
     #chunking_strategy='by_title',
     strategy='hi_res',
