@@ -5,6 +5,7 @@ from unstructured_client.models import shared
 from unstructured_client.models.errors import SDKError
 import json
 
+
 class UnstructuredPDFExtractor:
     def __init__(self, pdf_path):
         self.pdf_path = pdf_path
