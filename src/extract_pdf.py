@@ -8,8 +8,8 @@ import json
 
 class UnstructuredPDFExtractor:
     def __init__(self, pdf_path):
-        self.pdf_path = pdf_path
         load_dotenv()
+        self.pdf_path = pdf_path
         self.API_KEY = os.getenv('UNSTRUCTURED_API')
         self.UNSTRUCTURED_URL = os.getenv('UNSTRUCTURED_URL')
         self.client = UnstructuredClient(api_key_auth=self.API_KEY, server_url=self.UNSTRUCTURED_URL)
