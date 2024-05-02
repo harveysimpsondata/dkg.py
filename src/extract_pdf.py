@@ -46,7 +46,16 @@ class UnstructuredPDFExtractor:
         except SDKError as e:
             return json.dumps({'error': str(e)})
 
-# Usage example
+    def save_json_to_folder(self, json_data, folder_path):
+        os.makedirs(folder_path, exist_ok=True)
+        base_filename = os.path.splitext(os.path.basename(self.pdf_path))[0]
+        file_path = os.path.join(folder_path, f"{base_filename}.json")
+        with open(file_path, "w") as json_file:
+            json_file.write(json_data)
+
+
 # extractor = UnstructuredPDFExtractor('path/to/your/pdf')
 # json_output = extractor.process_pdf()
-# print(json_output)
+# folder_path = "path/to/save/json"  # Specify your desired folder path
+# extractor.save_json_to_folder(json_output, folder_path)
+# print(f"JSON output saved successfully to {folder_path}")
