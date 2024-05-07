@@ -3,6 +3,8 @@ import os
 import json
 from dkg import DKG
 from dkg.providers import BlockchainProvider, NodeHTTPProvider
+from rdflib import Graph, plugin
+from rdflib.serializer import Serializer
 
 load_dotenv()
 
@@ -22,20 +24,23 @@ blockchain_provider = BlockchainProvider(
 
 dkg = DKG(node_provider, blockchain_provider)
 
-info_result = dkg.node.info
+ual = "did:dkg:gnosis:100/0xf81a8c0008de2dcdb73366cf78f2b178616d11dd/32000"
+ual = "did:dkg:gnosis:100/0xf81a8c0008de2dcdb73366cf78f2b178616d11dd/38957"
+ual = "did:dkg:gnosis:100/0xf81a8c0008de2dcdb73366cf78f2b178616d11dd/38955"
+# Explicitly setting the output format to 'JSON-LD'
+get_asset_result = dkg.asset.get(ual, output_format="JSON-LD")
+
+get_asset_result = get_asset_result['public']['assertion']
 
 
-def print_json(json_dict: dict):
-    print(json.dumps(json_dict, indent=4))
+def convert_turtle_to_jsonld(turtle_data):
+    g = Graph()
+    g.parse(data=turtle_data, format='turtle')
+
+    # Serialize the graph to JSON-LD
+    jsonld_data = g.serialize(format='json-ld', indent=4)
+    return jsonld_data
 
 
-ual = "did:dkg:gnosis:100/0xf81a8c0008de2dcdb73366cf78f2b178616d11dd/38385"
-ual_list = [
-    "did:dkg:gnosis:100/0xf81a8c0008de2dcdb73366cf78f2b178616d11dd/38385",
-    "did:dkg:gnosis:100/0xf81a8c0008de2dcdb73366cf78f2b178616d11dd/38250",
-    "did:dkg:gnosis:100/0xf81a8c0008de2dcdb73366cf78f2b178616d11dd/38246"
-]
-
-get_asset_result = dkg.asset.get(ual)
-
-print(get_asset_result)
+jsonld_output = convert_turtle_to_jsonld(get_asset_result)
+print(jsonld_output)
