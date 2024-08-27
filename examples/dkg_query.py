@@ -28,8 +28,12 @@ ual = "did:dkg:gnosis:100/0xf81a8c0008de2dcdb73366cf78f2b178616d11dd/32000"
 ual = "did:dkg:gnosis:100/0xf81a8c0008de2dcdb73366cf78f2b178616d11dd/38957"
 ual = "did:dkg:gnosis:100/0xf81a8c0008de2dcdb73366cf78f2b178616d11dd/38955"
 ual = "did:dkg:gnosis:100/0xf81a8c0008de2dcdb73366cf78f2b178616d11dd/33175"
+ual = "did:dkg:gnosis:100/0xf81a8c0008de2dcdb73366cf78f2b178616d11dd/82904"
+
 # Explicitly setting the output format to 'JSON-LD'
 get_asset_result = dkg.asset.get(ual, output_format="JSON-LD")
+
+#print(json.dumps(get_asset_result, indent=4))
 
 get_asset_result = get_asset_result['public']['assertion']
 
