@@ -34,6 +34,7 @@ from dkg.constants import (
     PRIVATE_HISTORICAL_REPOSITORY,
 )
 from dkg.dataclasses import (
+    BidSuggestionRange,
     KnowledgeAssetContentVisibility,
     KnowledgeAssetEnumStates,
     NodeResponseDict,
@@ -68,7 +69,7 @@ from dkg.utils.rdf import format_content, normalize_dataset
 from dkg.utils.ual import format_ual, parse_ual
 
 
-class ContentAsset(Module):
+class KnowledgeAsset(Module):
     def __init__(self, manager: DefaultRequestManager):
         self.manager = manager
 
@@ -195,6 +196,7 @@ class ContentAsset(Module):
 
     _get_asset_storage_address = Method(BlockchainRequest.get_asset_storage_address)
     _create = Method(BlockchainRequest.create_asset)
+    _mint_paranet_knowledge_asset = Method(BlockchainRequest.mint_knowledge_asset)
 
     _get_bid_suggestion = Method(NodeRequest.bid_suggestion)
     _local_store = Method(NodeRequest.local_store)
@@ -207,6 +209,7 @@ class ContentAsset(Module):
         token_amount: Wei | None = None,
         immutable: bool = False,
         content_type: Literal["JSON-LD", "N-Quads"] = "JSON-LD",
+        paranet_ual: UAL | None = None,
     ) -> dict[str, UAL | HexStr | dict[str, dict[str, str] | TxReceipt]]:
         blockchain_id = self.manager.blockchain_provider.blockchain_id
         assertions = format_content(content, content_type)
@@ -230,6 +233,7 @@ class ContentAsset(Module):
                     content_asset_storage_address,
                     public_assertion_id,
                     DEFAULT_HASH_FUNCTION_ID,
+                    token_amount or BidSuggestionRange.LOW,
                 )["bidSuggestion"]
             )
 
@@ -240,20 +244,54 @@ class ContentAsset(Module):
         result = {"publicAssertionId": public_assertion_id, "operation": {}}
 
         try:
-            receipt: TxReceipt = self._create(
-                {
-                    "assertionId": Web3.to_bytes(hexstr=public_assertion_id),
-                    "size": public_assertion_metadata["size"],
-                    "triplesNumber": public_assertion_metadata["triples_number"],
-                    "chunksNumber": public_assertion_metadata["chunks_number"],
-                    "tokenAmount": token_amount,
-                    "epochsNumber": epochs_number,
-                    "scoreFunctionId": DEFAULT_PROXIMITY_SCORE_FUNCTIONS_PAIR_IDS[
-                        self.manager.blockchain_provider.environment
-                    ][blockchain_id],
-                    "immutable_": immutable,
-                }
-            )
+            if paranet_ual is None:
+                receipt: TxReceipt = self._create(
+                    {
+                        "assertionId": Web3.to_bytes(hexstr=public_assertion_id),
+                        "size": public_assertion_metadata["size"],
+                        "triplesNumber": public_assertion_metadata["triples_number"],
+                        "chunksNumber": public_assertion_metadata["chunks_number"],
+                        "tokenAmount": token_amount,
+                        "epochsNumber": epochs_number,
+                        "scoreFunctionId": DEFAULT_PROXIMITY_SCORE_FUNCTIONS_PAIR_IDS[
+                            self.manager.blockchain_provider.environment
+                        ][blockchain_id],
+                        "immutable_": immutable,
+                    }
+                )
+            else:
+                parsed_paranet_ual = parse_ual(paranet_ual)
+                paranet_knowledge_asset_storage, paranet_knowledge_asset_token_id = (
+                    parsed_paranet_ual["contract_address"],
+                    parsed_paranet_ual["token_id"],
+                )
+
+                receipt: TxReceipt = self._mint_paranet_knowledge_asset(
+                    paranet_knowledge_asset_storage,
+                    paranet_knowledge_asset_token_id,
+                    {
+                        "assertionId": Web3.to_bytes(hexstr=public_assertion_id),
+                        "size": public_assertion_metadata["size"],
+                        "triplesNumber": public_assertion_metadata["triples_number"],
+                        "chunksNumber": public_assertion_metadata["chunks_number"],
+                        "tokenAmount": token_amount,
+                        "epochsNumber": epochs_number,
+                        "scoreFunctionId": DEFAULT_PROXIMITY_SCORE_FUNCTIONS_PAIR_IDS[
+                            self.manager.blockchain_provider.environment
+                        ][blockchain_id],
+                        "immutable_": immutable,
+                    },
+                )
+
+                result["paranetId"] = Web3.to_hex(
+                    Web3.solidity_keccak(
+                        ["address", "uint256"],
+                        [
+                            paranet_knowledge_asset_storage,
+                            paranet_knowledge_asset_token_id,
+                        ],
+                    )
+                )
         except ContractLogicError as err:
             if is_allowance_increased:
                 self.decrease_allowance(token_amount)
@@ -278,7 +316,7 @@ class ContentAsset(Module):
                 "tokenId": token_id,
                 "assertionId": public_assertion_id,
                 "assertion": assertions["public"],
-                "storeType": StoreTypes.TRIPLE.value,
+                "storeType": StoreTypes.TRIPLE,
             }
         ]
 
@@ -293,7 +331,7 @@ class ContentAsset(Module):
                         sort_pairs=True,
                     ).root,
                     "assertion": assertions["private"],
-                    "storeType": StoreTypes.TRIPLE.value,
+                    "storeType": StoreTypes.TRIPLE,
                 }
             )
 
@@ -322,6 +360,42 @@ class ContentAsset(Module):
             }
 
         return result
+
+    _submit_knowledge_asset = Method(BlockchainRequest.submit_knowledge_asset)
+
+    def submit_to_paranet(
+        self, ual: UAL, paranet_ual: UAL
+    ) -> dict[str, UAL | Address | TxReceipt]:
+        parsed_ual = parse_ual(ual)
+        knowledge_asset_storage, knowledge_asset_token_id = (
+            parsed_ual["contract_address"],
+            parsed_ual["token_id"],
+        )
+
+        parsed_paranet_ual = parse_ual(paranet_ual)
+        paranet_knowledge_asset_storage, paranet_knowledge_asset_token_id = (
+            parsed_paranet_ual["contract_address"],
+            parsed_paranet_ual["token_id"],
+        )
+
+        receipt: TxReceipt = self._submit_knowledge_asset(
+            paranet_knowledge_asset_storage,
+            paranet_knowledge_asset_token_id,
+            knowledge_asset_storage,
+            knowledge_asset_token_id,
+        )
+
+        return {
+            "UAL": ual,
+            "paranetUAL": paranet_ual,
+            "paranetId": Web3.to_hex(
+                Web3.solidity_keccak(
+                    ["address", "uint256"],
+                    [knowledge_asset_storage, knowledge_asset_token_id],
+                )
+            ),
+            "operation": json.loads(Web3.to_json(receipt)),
+        }
 
     _transfer = Method(BlockchainRequest.transfer_asset)
 
@@ -396,6 +470,7 @@ class ContentAsset(Module):
                     content_asset_storage_address,
                     public_assertion_id,
                     DEFAULT_HASH_FUNCTION_ID,
+                    token_amount or BidSuggestionRange.LOW,
                 )["bidSuggestion"]
             )
 
@@ -427,7 +502,7 @@ class ContentAsset(Module):
                 "tokenId": token_id,
                 "assertionId": public_assertion_id,
                 "assertion": assertions["public"],
-                "storeType": StoreTypes.PENDING.value,
+                "storeType": StoreTypes.PENDING,
             }
         ]
 
@@ -442,7 +517,7 @@ class ContentAsset(Module):
                         sort_pairs=True,
                     ).root,
                     "assertion": assertions["private"],
-                    "storeType": StoreTypes.PENDING.value,
+                    "storeType": StoreTypes.PENDING,
                 }
             )
 
@@ -460,7 +535,7 @@ class ContentAsset(Module):
         operation_result = self.get_operation_result(operation_id, "update")
 
         return {
-            "UAL": format_ual(blockchain_id, content_asset_storage_address, token_id),
+            "UAL": ual,
             "publicAssertionId": public_assertion_id,
             "operation": {
                 "operationId": operation_id,
@@ -499,8 +574,8 @@ class ContentAsset(Module):
     def get(
         self,
         ual: UAL,
-        state: str | HexStr | int = KnowledgeAssetEnumStates.LATEST.value,
-        content_visibility: str = KnowledgeAssetContentVisibility.ALL.value,
+        state: str | HexStr | int = KnowledgeAssetEnumStates.LATEST,
+        content_visibility: str = KnowledgeAssetContentVisibility.ALL,
         output_format: Literal["JSON-LD", "N-Quads"] = "JSON-LD",
         validate: bool = True,
     ) -> dict[str, UAL | HexStr | list[JSONLD] | dict[str, str]]:
@@ -528,10 +603,10 @@ class ContentAsset(Module):
         is_state_finalized = False
 
         match state:
-            case KnowledgeAssetEnumStates.LATEST.value:
+            case KnowledgeAssetEnumStates.LATEST:
                 public_assertion_id, is_state_finalized = handle_latest_state(token_id)
 
-            case KnowledgeAssetEnumStates.LATEST_FINALIZED.value:
+            case KnowledgeAssetEnumStates.LATEST_FINALIZED:
                 public_assertion_id, is_state_finalized = handle_latest_finalized_state(
                     token_id
                 )
@@ -592,7 +667,7 @@ class ContentAsset(Module):
                 )
 
         result = {"operation": {}}
-        if content_visibility != KnowledgeAssetContentVisibility.PRIVATE.value:
+        if content_visibility != KnowledgeAssetContentVisibility.PRIVATE:
             formatted_public_assertion = public_assertion
 
             match output_format:
@@ -609,7 +684,7 @@ class ContentAsset(Module):
                         f"{output_format} isn't supported!"
                     )
 
-            if content_visibility == KnowledgeAssetContentVisibility.PUBLIC.value:
+            if content_visibility == KnowledgeAssetContentVisibility.PUBLIC:
                 result = {
                     **result,
                     "asertion": formatted_public_assertion,
@@ -626,7 +701,7 @@ class ContentAsset(Module):
                 "status": get_public_operation_result["status"],
             }
 
-        if content_visibility != KnowledgeAssetContentVisibility.PUBLIC.value:
+        if content_visibility != KnowledgeAssetContentVisibility.PUBLIC:
             private_assertion_link_triples = list(
                 filter(
                     lambda element: PRIVATE_ASSERTION_PREDICATE in element,
@@ -702,7 +777,7 @@ class ContentAsset(Module):
                                 f"{output_format} isn't supported!"
                             )
 
-                    if content_visibility == KnowledgeAssetContentVisibility.PRIVATE:
+                    if content_visibility == KnowledgeAssetContentVisibility:
                         result = {
                             **result,
                             "assertion": formatted_private_assertion,
@@ -751,6 +826,7 @@ class ContentAsset(Module):
                     content_asset_storage_address,
                     latest_finalized_state,
                     DEFAULT_HASH_FUNCTION_ID,
+                    token_amount or BidSuggestionRange.LOW,
                 )["bidSuggestion"]
             )
 
@@ -806,6 +882,7 @@ class ContentAsset(Module):
                     content_asset_storage_address,
                     latest_finalized_state,
                     DEFAULT_HASH_FUNCTION_ID,
+                    token_amount or BidSuggestionRange.LOW,
                 )["bidSuggestion"]
             ) - sum(agreement_data.tokensInfo)
 
@@ -863,6 +940,7 @@ class ContentAsset(Module):
                     content_asset_storage_address,
                     unfinalized_state,
                     DEFAULT_HASH_FUNCTION_ID,
+                    token_amount or BidSuggestionRange.LOW,
                 )["bidSuggestion"]
             ) - sum(agreement_data.tokensInfo)
 

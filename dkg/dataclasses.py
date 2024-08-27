@@ -15,9 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from enum import Enum
+from dataclasses import dataclass
+from enum import auto, Enum
 
 import pandas as pd
+
+from dkg.types import AutoStrEnum, AutoStrEnumCapitalize, AutoStrEnumUpperCase
 
 
 class BlockchainResponseDict(dict):
@@ -34,12 +37,29 @@ class NodeResponseDict(dict):
         return pd.DataFrame(self)
 
 
-class KnowledgeAssetEnumStates(Enum):
-    LATEST = "LATEST"
-    LATEST_FINALIZED = "LATEST_FINALIZED"
+class BidSuggestionRange(AutoStrEnum):
+    LOW = auto()
+    MEDIUM = auto()
+    HIGH = auto()
+    ALL = auto()
 
 
-class KnowledgeAssetContentVisibility(Enum):
-    ALL = "ALL"
-    PUBLIC = "PUBLIC"
-    PRIVATE = "PRIVATE"
+class KnowledgeAssetEnumStates(AutoStrEnumUpperCase):
+    LATEST = auto()
+    LATEST_FINALIZED = auto()
+
+
+class KnowledgeAssetContentVisibility(AutoStrEnumUpperCase):
+    ALL = auto()
+    PUBLIC = auto()
+    PRIVATE = auto()
+
+
+class ParanetIncentivizationType(AutoStrEnumCapitalize):
+    NEUROWEB = auto()
+
+
+@dataclass
+class BaseIncentivesPoolParams:
+    def to_contract_args(self) -> dict:
+        raise NotImplementedError("This method should be overridden in subclasses")
